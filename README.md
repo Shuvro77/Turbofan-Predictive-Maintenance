@@ -13,5 +13,14 @@ This project uses an **LSTM (Long Short-Term Memory)** network to predict the Re
 * `notebooks/`: Data exploration and model training.
 
 ## 🚦 How to run the API
-## 1. Install requirements: `pip install -r requirements.txt`
-## 2. Run Uvicorn: `uvicorn app.main:app --reload`
+1. Install requirements: `pip install -r requirements.txt`
+2. Run Uvicorn: `uvicorn app.main:app --reload`
+
+## 🧪 Testing the API
+
+To test the prediction engine, you need a 50-cycle window of sensor data formatted as JSON. We have provided a utility script to automate this.
+
+### 1. Generate a Test Payload
+Run the following script to pick a random engine from the test set and format its data:
+```bash
+python3 scripts/get_a_random_valid_input_data_from_test.py
