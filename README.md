@@ -18,9 +18,9 @@ This project uses an **LSTM (Long Short-Term Memory)** network to predict the Re
 
 ## 🧪 Testing the API
 
-To test the prediction engine, you need a 50-cycle window of sensor data formatted as JSON. We have provided a utility script to automate this.
+The API is designed to handle time-series windows of varying lengths. While the LSTM model requires exactly 50 cycles, the system implements **Zero-Padding** to support engines with shorter histories.
 
 ### 1. Generate a Test Payload
-Run the following script to pick a random engine from the test set and format its data:
+Run the utility script to generate a random test case. It will automatically pick a random engine and a window size between 10 and 50 cycles:
 ```bash
 python3 scripts/get_a_random_valid_input_data_from_test.py
