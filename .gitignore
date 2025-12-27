@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Data and Models (Usually kept local or in DVC)
+data/
+*.keras
+*.pkl
+
+# IDEs
+.vscode/
+.idea/
