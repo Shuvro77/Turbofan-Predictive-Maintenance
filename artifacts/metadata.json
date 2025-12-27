@@ -1,1 +1,6 @@
-{"features": ["s_11", "s_12", "s_13", "s_15", "s_17", "s_2", "s_20", "s_21", "s_3", "s_4", "s_6", "s_7", "s_8", "s_9"], "sequence_length": 50, "mae_score": 9.38, "clipping_value": 125}
+{
+    "sensor_names": ["s_11", "s_12", "s_13", "s_15", "s_17", "s_2", "s_20", "s_21", "s_3", "s_4", "s_6", "s_7", "s_8", "s_9"],
+    "sensor_indices": [11, 12, 13, 15, 17, 2, 20, 21, 3, 4, 6, 7, 8, 9],
+    "sequence_length": 50,
+    "mae_score": 9.38
+}

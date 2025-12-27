@@ -13,3 +13,6 @@ data/
 # IDEs
 .vscode/
 .idea/
+
+# Temporary test data
+temporary/
