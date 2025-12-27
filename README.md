@@ -125,6 +125,31 @@ To ensure the API is production-ready, we conducted stress tests using a custom 
 
 ### **How to Run Stress Tests**
 Ensure the Docker container is running, then use:
-```bash
+```
 # Usage: python3 scripts/stress_test.py <total_requests> <concurrency>
 python3 scripts/stress_test.py 100 50
+```
+
+---
+
+## 🐳 Docker Optimization & Deployment
+
+The Docker image has been optimized for production environments, focusing on reducing the footprint for cloud hosting (e.g., Render, Hugging Face Spaces).
+
+### **Optimization Techniques Applied:**
+1.  **Multi-Stage Builds:** Separated the build environment (compilers/pip cache) from the runtime environment.
+2.  **Library Selection:** Switched to `tensorflow-cpu` to remove ~1.5GB of unnecessary GPU/CUDA binaries.
+3.  **Venv Pruning:** Manually removed `__pycache__` and `.pyc` files from the virtual environment during the build process.
+4.  **Base Image:** Utilized `python:3.12-slim` to minimize the underlying OS layer.
+
+### **Image Evolution:**
+| Version | Image Size | Notes |
+| :--- | :--- | :--- |
+| Initial Build | 5.34 GB | Included local `venv` and full TensorFlow |
+| Optimized v1 | 2.57 GB | Added `.dockerignore` and multi-stage build |
+| **Current (Prod)**| **1.77 GB** | Switched to `tensorflow-cpu` + venv pruning |
+
+### **How to Build the Optimized Image:**
+```
+sudo docker build -t turbofan-rul-api:prod .
+```

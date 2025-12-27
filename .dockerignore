@@ -1,9 +1,16 @@
-venv/
-data/
-temporary/
-scripts/
-notebooks/
-.git/
-.gitignore
-__pycache__/
+# Ignore ALL virtual environments anywhere in the tree
+**/venv/
+.venv/
+
+# Python artifacts
+**/__pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Local dev files
+.git/
+.ipynb_checkpoints/
+.env
+data/
+scripts/
