@@ -13,7 +13,7 @@ temp_dir = os.path.join(BASE_DIR, 'temporary')
 os.makedirs(temp_dir, exist_ok=True)
 
 def generate_random_test_case():
-    # 2. Load Metadata (Source of Truth for sensor order)
+    # 2. Load Metadata
     try:
         with open(metadata_path, 'r') as f:
             meta = json.load(f)
@@ -22,7 +22,6 @@ def generate_random_test_case():
         return
 
     # 3. Load the raw NASA test data
-    # NASA FD001 raw format: [0:unit, 1:cycle, 2:set1, 3:set2, 4:set3, 5:s1, 6:s2, ... 25:s21]
     test_df = pd.read_csv(data_path, sep=r'\s+', header=None)
 
     # 4. Map raw indices to actual sensor names
@@ -35,25 +34,21 @@ def generate_random_test_case():
     }
     test_df.rename(columns=raw_column_names, inplace=True)
 
-    # 5. Filter for units that have at least enough cycles (50)
-    seq_length = meta['sequence_length']
+    # 5. Pick a random engine unit
     units = test_df['unit_id'].unique()
-    valid_units = [u for u in units if len(test_df[test_df['unit_id'] == u]) >= seq_length]
-
-    if not valid_units:
-        print("No units found with enough data cycles.")
-        return
-
-    selected_unit = random.choice(valid_units)
+    selected_unit = random.choice(units)
     unit_data = test_df[test_df['unit_id'] == selected_unit]
 
-    # 6. Pick a random 50-cycle window from this unit
-    max_start = len(unit_data) - seq_length
-    start_idx = random.randint(0, max_start)
-    window_df = unit_data.iloc[start_idx : start_idx + seq_length]
+    # 6. Logic for variable window length (Padding Test)
+    # We want a random length, but it cannot exceed the total cycles the unit has
+    max_available = len(unit_data)
+    # Target between 10 and 50, but cap it at max_available
+    test_length = min(random.randint(10, 50), max_available)
+    
+    # Take the first 'test_length' cycles
+    window_df = unit_data.head(test_length)
 
-    # 7. Extract ONLY the sensors defined in metadata.json (in the correct order)
-    # This prevents the "Feature names must match" error in the API
+    # 7. Extract ONLY the sensors defined in metadata.json
     final_data = window_df[meta['sensor_names']]
 
     # 8. Save to temporary directory
@@ -64,8 +59,9 @@ def generate_random_test_case():
     with open(file_path, 'w') as f:
         json.dump(payload, f, indent=2)
 
+    # FIXED: Printing test_length instead of hardcoded seq_length
     print(f"Success! Random test data for Unit {selected_unit} saved in \"temporary/{filename}\"")
-    print(f"This payload contains {seq_length} cycles and {len(meta['sensor_names'])} sensors.")
+    print(f"This payload contains {test_length} cycles (Model will auto-pad to 50) and {len(meta['sensor_names'])} sensors.")
 
 if __name__ == "__main__":
     generate_random_test_case()
