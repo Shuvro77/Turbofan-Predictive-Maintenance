@@ -101,3 +101,30 @@ To stop and remove the container:
 sudo docker stop turbofan-container
 sudo docker rm turbofan-container
 ```
+
+---
+
+## 📈 Performance & Stress Testing
+
+To ensure the API is production-ready, we conducted stress tests using a custom asynchronous testing suite (`scripts/stress_test.py`). The tests simulated multiple concurrent users sending engine sensor data with variable sequence lengths (1-100 cycles) to test the robustness of the padding and truncation logic.
+
+### **Testing Configuration**
+- **Total Requests:** 100
+- **Variable Input:** Random window sizes between 1 and 100 cycles per request.
+- **Hardware:** CPU-bound inference (Docker container).
+
+### **Results**
+| Concurrency (Users) | Success Rate | Avg Latency | P95 Latency |
+|:-------------------|:-------------|:------------|:------------|
+| 10                 | 100%         | 3.73s       | 6.10s       |
+| 20                 | 100%         | 2.36s       | 3.65s       |
+| 50                 | 100%         | 2.28s       | 3.43s       |
+| 80                 | 100%         | 2.50s       | 3.43s       |
+
+**Key Finding:** The system is highly stable under load, maintaining a 100% success rate even at 80 concurrent connections. The latency remains consistent, demonstrating that the FastAPI + Uvicorn setup efficiently queues and processes LSTM inference tasks.
+
+### **How to Run Stress Tests**
+Ensure the Docker container is running, then use:
+```bash
+# Usage: python3 scripts/stress_test.py <total_requests> <concurrency>
+python3 scripts/stress_test.py 100 50

@@ -8,7 +8,11 @@ import json
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 # 1. Initialize FastAPI app
-app = FastAPI(title="NASA Turbofan RUL Predictor")
+app = FastAPI(
+    title="NASA Turbofan RUL Predictor",
+    description="An LSTM-based API to predict the Remaining Useful Life of aircraft engines.",
+    version="1.0.0"
+)
 
 # 2. Load the trained artifacts
 # Make sure these files exist in your 'artifacts/' folder
