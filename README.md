@@ -16,6 +16,7 @@ This project uses an **LSTM (Long Short-Term Memory)** network to predict the Re
 1. Install requirements: `pip install -r requirements.txt`
 2. Run Uvicorn: `uvicorn app.main:app --reload`
 
+---
 ## 🧪 Testing the API
 
 The API is designed to handle time-series windows of varying lengths. While the LSTM model requires exactly 50 cycles, the system implements **Zero-Padding** to support engines with shorter histories.
@@ -42,7 +43,7 @@ curl -X 'POST' '[http://127.0.0.1:8000/predict](http://127.0.0.1:8000/predict)' 
   "padding_applied": true
 }
 ```
-
+---
 ## 📊 Performance Benchmarking
 
 To ensure the API is production-ready, we track latency metrics. Deep learning models often experience a "cold start" on the first request as the computation graph initializes.
@@ -51,4 +52,52 @@ To ensure the API is production-ready, we track latency metrics. Deep learning m
 Ensure the server is running, then execute:
 ```
 python3 scripts/benchmark_api.py
+```
+---
+
+## 🐳 Running with Docker
+
+This project is fully containerized. Docker ensures the API runs in an environment with the exact versions of TensorFlow and Python required for the LSTM model.
+
+### 1. Build the Image
+From the project root, run:
+```
+sudo docker build -t turbofan-rul-api:latest .
+```
+
+### 2. Run the Container
+Start the API in detached mode, mapping port 8000:
+```
+sudo docker run -d -p 8000:8000 --name turbofan-container turbofan-rul-api:latest
+```
+### 3. Verify the Deployment
+API Documentation: Visit http://localhost:8000/docs
+
+Check Logs: `sudo docker logs -f turbofan-container`
+
+Run Benchmark: Ensure the container is running, then execute the local benchmark script:
+```
+python3 scripts/benchmark_api.py
+```
+Benchmark output in docker
+```
+(venv) shuvro@shuvro:~/Desktop/Turbofan_RUL_Project$ python3 scripts/benchmark_api.py
+🚀 Starting Benchmark: Sending 10 requests to the API...
+Test 1: RUL 127.03 | Time: 83.86ms
+Test 2: RUL 114.51 | Time: 88.16ms
+Test 3: RUL 0.67 | Time: 91.02ms
+Test 4: RUL 0.67 | Time: 90.71ms
+Test 5: RUL 84.33 | Time: 92.33ms
+
+--- Benchmark Results ---
+Average Latency: 89.21 ms
+Min Latency: 83.86 ms
+Max Latency: 92.33 ms
+```
+
+### 4. Stopping the Project
+To stop and remove the container:
+```
+sudo docker stop turbofan-container
+sudo docker rm turbofan-container
 ```
