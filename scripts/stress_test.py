@@ -6,9 +6,42 @@ import json
 import os
 import sys
 import random
+import argparse
 
-# Configuration
-API_URL = "http://localhost:8000/predict"
+# 1. Setup the Argument Parser
+parser = argparse.ArgumentParser(description="Stress test for Turbofan RUL API")
+
+# Environment flag (choices ensure only valid options are picked)
+parser.add_argument(
+    "--env", 
+    choices=["local", "live"], 
+    default="local", 
+    help="Target environment: 'local' or 'live' (Hugging Face)"
+)
+
+# Total requests flag (type=int handles conversion automatically)
+parser.add_argument(
+    "--total", 
+    type=int, 
+    default=100, 
+    help="Total number of requests to send (default: 100)"
+)
+
+# Concurrency flag
+parser.add_argument(
+    "--concurrent", 
+    type=int, 
+    default=10, 
+    help="Number of concurrent requests (default: 10)"
+)
+
+args = parser.parse_args()
+
+# 2. Define URLs and select target
+LOCAL_URL = "http://localhost:7860/predict"
+LIVE_URL = "https://shuvro77-turbofan-predictive-maintenance.hf.space/predict"
+API_URL = LIVE_URL if args.env == "live" else LOCAL_URL
+
 METADATA_PATH = "artifacts/metadata.json"
 
 # Load feature names
@@ -18,9 +51,6 @@ with open(METADATA_PATH, 'r') as f:
 
 async def send_request(client, request_id):
     num_sensors = len(FEATURE_NAMES)
-    
-    # --- RANDOM CYCLES LOGIC ---
-    # Generate a random sequence length between 1 and 100
     num_cycles = random.randint(1, 100)
     
     raw_data = np.random.rand(num_cycles, num_sensors)
@@ -32,11 +62,6 @@ async def send_request(client, request_id):
     try:
         response = await client.post(API_URL, json=payload, timeout=30.0)
         latency = time.perf_counter() - start
-        
-        # Log failure details for the first failure encountered
-        if response.status_code != 200:
-            return response.status_code, 0
-            
         return response.status_code, latency
     except Exception:
         return 500, 0
@@ -45,7 +70,8 @@ async def run_stress_test(total_requests, concurrency):
     limits = httpx.Limits(max_connections=concurrency)
     async with httpx.AsyncClient(limits=limits, timeout=None) as client:
         tasks = [send_request(client, i) for i in range(total_requests)]
-        print(f"🚀 Random Stress Test: Total={total_requests}, Concurrency={concurrency}")
+        print(f"🚀 Environment: {args.env.upper()} | Target: {API_URL}")
+        print(f"🚀 Stress Test: Total={total_requests}, Concurrency={concurrency}")
         print(f"📊 Each request contains a random window (1-100 cycles)")
         
         results = await asyncio.gather(*tasks)
@@ -56,14 +82,12 @@ async def run_stress_test(total_requests, concurrency):
     if latencies:
         print(f"\n✅ Success: {len(latencies)}/{total_requests}")
         if errors:
-            print(f"❌ Errors: {len(errors)} (Check if model handles > 50 cycles)")
+            print(f"❌ Errors: {len(errors)}")
         print(f"⏱️ Avg Latency: {np.mean(latencies):.4f}s")
         print(f"📉 P95 Latency: {np.percentile(latencies, 95):.4f}s\n")
     else:
         print("❌ All requests failed. Check Docker logs for error messages.")
 
 if __name__ == "__main__":
-    total = int(sys.argv[1]) if len(sys.argv) > 1 else 100
-    concurrent = int(sys.argv[2]) if len(sys.argv) > 2 else 10
-    
-    asyncio.run(run_stress_test(total, concurrent))
+    # Use the parsed arguments directly
+    asyncio.run(run_stress_test(args.total, args.concurrent))

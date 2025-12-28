@@ -8,9 +8,6 @@ app_port: 7860
 pinned: false
 ---
 
-# Turbofan Predictive Maintenance API
-(Your existing readme content starts here...)
-
 # Turbofan Engine RUL Prediction (NASA CMAPSS)
 
 This project uses an **LSTM (Long Short-Term Memory)** network to predict the Remaining Useful Life (RUL) of aircraft engines using the FD001 dataset.
@@ -57,15 +54,42 @@ curl -X 'POST' '[http://127.0.0.1:8000/predict](http://127.0.0.1:8000/predict)' 
 }
 ```
 ---
+## 🚀 Live API Access
+
+The model is professionally hosted on **Hugging Face Spaces** using a Dockerized FastAPI backend. You can interact with the API directly via the web interface or programmatically.
+
+**API Base URL:** `https://shuvro77-turbofan-predictive-maintenance.hf.space`
+
+### **1. Interactive Documentation**
+Explore the endpoints and test the model in your browser via Swagger UI:
+👉 [View Interactive Docs](https://shuvro77-turbofan-predictive-maintenance.hf.space/docs)
+
+---
 ## 📊 Performance Benchmarking
 
 To ensure the API is production-ready, we track latency metrics. Deep learning models often experience a "cold start" on the first request as the computation graph initializes.
 
 ### Run the Benchmark
 Ensure the server is running, then execute:
-```
-python3 scripts/benchmark_api.py
-```
+#### **Local Environment**
+- **API Documentation:** Visit `http://localhost:7860/docs`
+- **Check Logs:** `sudo docker logs -f turbofan-container`
+- **Run Benchmark:**
+  ```
+  python3 scripts/benchmark_api.py --env local
+  ```
+#### **Live Environment (Hugging Face)**
+- **API Documentation:** Visit `https://shuvro77-turbofan-predictive-maintenance.hf.space/docs`
+- **Run Benchmark:**
+  ```
+  python3 scripts/benchmark_api.py --env live
+  ```
+#### **Benchmark Comparison Results**
+| Metric | Local Docker (8-Core CPU) | Live HF Space (Shared CPU) |
+|:-------------------|:-------------|:------------|
+| Avg Latency                 | 89.21 ms         | 2312.13 ms       |
+| Min Latency                 | 83.86 ms        | 1562.90 ms       | 
+| Max Latency                 | 92.33 ms        | 2643.89 ms       | 
 ---
 
 ## 🐳 Running with Docker
@@ -119,14 +143,12 @@ sudo docker rm turbofan-container
 
 ## 📈 Performance & Stress Testing
 
-To ensure the API is production-ready, we conducted stress tests using a custom asynchronous testing suite (`scripts/stress_test.py`). The tests simulated multiple concurrent users sending engine sensor data with variable sequence lengths (1-100 cycles) to test the robustness of the padding and truncation logic.
+To evaluate the operational limits of the API, stress tests were conducted comparing a **Local Environment** (Dedicated CPU) vs. **Hugging Face Spaces** (Shared Free-Tier CPU).
 
-### **Testing Configuration**
-- **Total Requests:** 100
-- **Variable Input:** Random window sizes between 1 and 100 cycles per request.
-- **Hardware:** CPU-bound inference (Docker container).
+### **Local Environment (Development)**
+* **Hardware:** Local Host
+* **Target:** `http://localhost:7860`
 
-### **Results**
 | Concurrency (Users) | Success Rate | Avg Latency | P95 Latency |
 |:-------------------|:-------------|:------------|:------------|
 | 10                 | 100%         | 3.73s       | 6.10s       |
@@ -134,13 +156,33 @@ To ensure the API is production-ready, we conducted stress tests using a custom 
 | 50                 | 100%         | 2.28s       | 3.43s       |
 | 80                 | 100%         | 2.50s       | 3.43s       |
 
-**Key Finding:** The system is highly stable under load, maintaining a 100% success rate even at 80 concurrent connections. The latency remains consistent, demonstrating that the FastAPI + Uvicorn setup efficiently queues and processes LSTM inference tasks.
+### **Live Production (Hugging Face)**
+* **Hardware:** 2 vCPU, 16GB RAM (Shared)
+* **Target:** `https://shuvro77-turbofan-predictive-maintenance.hf.space`
+
+| Concurrency (Users) | Success Rate | Avg Latency | P95 Latency |
+|:-------------------|:-------------|:------------|:------------|
+| 10                 | 100%         | 21.64s      | 40.70s      |
+| 20                 | 100%         | 19.26s      | 30.24s      |
+| 40                 | 98%          | 26.07s      | 41.81s      |
+| 80                 | 37%          | 20.07s      | 43.58s      |
+
+### **Key Observations**
+- **Infrastructure Limits:** The transition from local to shared cloud infrastructure resulted in a ~10x increase in latency, typical for computationally intensive LSTM models running on shared vCPUs.
+- **Stability Threshold:** The production API remains highly stable up to **20 concurrent users**. Beyond **40 concurrent users**, we observe request queuing and a drop in success rates due to CPU throttling.
+- **Reliability:** The 16GB RAM allocation on Hugging Face ensures the model remains loaded without Out-Of-Memory (OOM) errors even under heavy concurrent load.
+- **Key Finding:** The system is highly stable under load, maintaining a 100% success rate even at 80 concurrent connections. The latency remains consistent, demonstrating that the FastAPI + Uvicorn setup efficiently queues and processes LSTM inference tasks.
 
 ### **How to Run Stress Tests**
 Ensure the Docker container is running, then use:
 ```
-# Usage: python3 scripts/stress_test.py <total_requests> <concurrency>
-python3 scripts/stress_test.py 100 50
+# Usage: stress_test.py [-h] [--env {local,live}] [--total TOTAL] [--concurrent CONCURRENT]
+
+Local:
+python3 scripts/stress_test.py --env local --total 100 --concurrent 20
+
+Live:
+python3 scripts/stress_test.py --env live --total 100 --concurrent 10
 ```
 
 ---
