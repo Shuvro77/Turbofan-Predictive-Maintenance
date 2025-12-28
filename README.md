@@ -7,6 +7,12 @@ sdk: docker
 app_port: 7860
 pinned: false
 ---
+### 🚀 Deployment Info
+- **Deployment Status:** ![Deployment Status](https://github.com/Shuvro77/Turbofan-Predictive-Maintenance/actions/workflows/deploy.yaml/badge.svg)
+- **Last Updated:** Refer to the [GitHub Actions History](https://github.com/Shuvro77/Turbofan-Predictive-Maintenance/actions) for the latest deployment timestamp.
+- **Live Demo:** [Hugging Face Space API](https://huggingface.co/spaces/Shuvro77/Turbofan-Predictive-Maintenance)
+
+> **⚠️ Automated Deployment Note:** This project is configured with **CI/CD**. Any changes committed and pushed to the `main` branch will automatically trigger a build and deploy the updated container to the Hugging Face Space.![Deployment Status](https://github.com/Shuvro77/Turbofan-Predictive-Maintenance/actions/workflows/deploy.yaml/badge.svg)
 
 # Turbofan Engine RUL Prediction (NASA CMAPSS)
 
