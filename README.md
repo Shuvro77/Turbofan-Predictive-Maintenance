@@ -1,3 +1,16 @@
+---
+title: Turbofan Predictive Maintenance
+emoji: 🚀
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
+# Turbofan Predictive Maintenance API
+(Your existing readme content starts here...)
+
 # Turbofan Engine RUL Prediction (NASA CMAPSS)
 
 This project uses an **LSTM (Long Short-Term Memory)** network to predict the Remaining Useful Life (RUL) of aircraft engines using the FD001 dataset.
