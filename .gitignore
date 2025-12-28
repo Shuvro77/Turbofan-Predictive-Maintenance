@@ -10,6 +10,10 @@ data/
 *.keras
 *.pkl
 
+# EXCEPT these production artifacts (ALLOW these to be pushed)
+!artifacts/lstm_model_v1.keras
+!artifacts/scaler.pkl
+
 # IDEs
 .vscode/
 .idea/
