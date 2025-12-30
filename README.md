@@ -12,11 +12,26 @@ pinned: false
 - **Last Updated:** Refer to the [GitHub Actions History](https://github.com/Shuvro77/Turbofan-Predictive-Maintenance/actions) for the latest deployment timestamp.
 - **Live Demo:** [Hugging Face Space API](https://huggingface.co/spaces/Shuvro77/Turbofan-Predictive-Maintenance)
 
-> ** Automated Deployment Note:** This project is configured with **CI/CD**. Any changes committed and pushed to the `main` branch will automatically trigger a build and deploy the updated container to the Hugging Face Space.![Deployment Status](https://github.com/Shuvro77/Turbofan-Predictive-Maintenance/actions/workflows/deploy.yaml/badge.svg)
+> ** Automated Deployment Note:** This project is configured with **CI/CD**. Any changes committed and pushed to the `main` branch will automatically trigger a build and deploy the updated container to the Hugging Face Space.
 
 # Turbofan Engine RUL Prediction (NASA CMAPSS)
 
 This project uses an **LSTM (Long Short-Term Memory)** network to predict the Remaining Useful Life (RUL) of aircraft engines using the FD001 dataset.
+
+## Quick Navigation
+
+| Section | Description |
+| :--- | :--- |
+| [Machine Learning Workflow](#machine-learning-workflow) | Details on data engineering, feature selection, and LSTM architecture. |
+| [Project Structure](#project-structure) | Overview of the repository organization and file locations. |
+| [How to Run the API](#how-to-run-the-api) | Installation steps and local execution instructions. |
+| [Testing the API](#testing-the-api) | Guide for generating test payloads and verifying endpoints. |
+| [Live API Access](#live-api-access) | Access points for the production Hugging Face Space. |
+| [Performance Benchmarking](#performance-benchmarking) | Latency analysis across different hosting environments. |
+| [Docker Optimization](#docker-optimization--deployment) | Technical breakdown of image size reduction techniques. |
+
+---
+
 
 ## Key Results
 * **Final Test MAE:** 9.38
@@ -41,10 +56,6 @@ This project follows a structured MLOps pipeline to predict the Remaining Useful
 
 ### 2. Model Architecture (LSTM)
 The model uses a **Long Short-Term Memory (LSTM)** network, which is ideal for time-series forecasting due to its ability to remember long-term dependencies in sensor patterns.
-- **Input Layer:** Shape `(50, 25)` representing 50 time-steps and 25 features.
-- **LSTM Layers:** Two stacked LSTM layers (100 and 50 units) to extract hierarchical temporal features.
-- **Dropout:** 20% Dropout layers were added to prevent overfitting during training.
-- **Output Layer:** A Dense layer with a linear activation to predict the continuous RUL value.
 ###  Model Summary
 The following table outlines the layer structure, output shapes, and parameter counts of the LSTM model used for RUL prediction:
 
@@ -143,22 +154,22 @@ Explore the endpoints and test the model in your browser via Swagger UI:
 
 To ensure the API is production-ready, we track latency metrics. Deep learning models often experience a "cold start" on the first request as the computation graph initializes.
 
-### Run the Benchmark
+### 1. Latency Benchmarking
 Ensure the server is running, then execute:
-#### **Local Environment**
+#### Local Environment
 - **API Documentation:** Visit `http://localhost:7860/docs`
 - **Check Logs:** `sudo docker logs -f turbofan-container`
 - **Run Benchmark:**
   ```
   python3 scripts/benchmark_api.py --env local
   ```
-#### **Live Environment (Hugging Face)**
+#### Live Environment (Hugging Face)
 - **API Documentation:** Visit `https://shuvro77-turbofan-predictive-maintenance.hf.space/docs`
 - **Run Benchmark:**
   ```
   python3 scripts/benchmark_api.py --env live
   ```
-#### **Benchmark Comparison Results**
+#### Benchmark Comparison Results
 | Metric | Local Docker (8-Core CPU) | Live HF Space (Shared CPU) |
 |:-------------------|:-------------|:------------|
 | Avg Latency                 | 89.21 ms         | 2312.13 ms       |
@@ -166,22 +177,74 @@ Ensure the server is running, then execute:
 | Max Latency                 | 92.33 ms        | 2643.89 ms       | 
 ---
 
-## Running with Docker
+
+
+### 2. High-Concurrency Stress Testing
+
+To evaluate the operational limits of the API, stress tests were conducted comparing a **Local Environment** (Dedicated CPU) vs. **Hugging Face Spaces** (Shared Free-Tier CPU).
+
+#### Local Environment (Development)
+* **Hardware:** Local Host
+* **Target:** `http://localhost:7860`
+
+| Concurrency (Users) | Success Rate | Avg Latency | P95 Latency |
+|:-------------------|:-------------|:------------|:------------|
+| 10                 | 100%         | 3.73s       | 6.10s       |
+| 20                 | 100%         | 2.36s       | 3.65s       |
+| 50                 | 100%         | 2.28s       | 3.43s       |
+| 80                 | 100%         | 2.50s       | 3.43s       |
+
+#### Live Production (Hugging Face)
+* **Hardware:** 2 vCPU, 16GB RAM (Shared)
+* **Target:** `https://shuvro77-turbofan-predictive-maintenance.hf.space`
+
+| Concurrency (Users) | Success Rate | Avg Latency | P95 Latency |
+|:-------------------|:-------------|:------------|:------------|
+| 10                 | 100%         | 21.64s      | 40.70s      |
+| 20                 | 100%         | 19.26s      | 30.24s      |
+| 40                 | 98%          | 26.07s      | 41.81s      |
+| 80                 | 37%          | 20.07s      | 43.58s      |
+
+#### **Key Observations**
+- **Infrastructure Limits:** The transition from local to shared cloud infrastructure resulted in a ~10x increase in latency, typical for computationally intensive LSTM models running on shared vCPUs.
+- **Stability Threshold:** The production API remains highly stable up to **20 concurrent users**. Beyond **40 concurrent users**, we observe request queuing and a drop in success rates due to CPU throttling.
+- **Reliability:** The 16GB RAM allocation on Hugging Face ensures the model remains loaded without Out-Of-Memory (OOM) errors even under heavy concurrent load.
+- **Key Finding:** The system is highly stable under load, maintaining a 100% success rate even at 80 concurrent connections. The latency remains consistent, demonstrating that the FastAPI + Uvicorn setup efficiently queues and processes LSTM inference tasks.
+
+#### **How to Run Stress Tests**
+Ensure the Docker container is running, then use:
+```
+# Usage: stress_test.py [-h] [--env {local,live}] [--total TOTAL] [--concurrent CONCURRENT]
+
+Local:
+python3 scripts/stress_test.py --env local --total 100 --concurrent 20
+
+Live:
+python3 scripts/stress_test.py --env live --total 100 --concurrent 10
+```
+
+---
+
+## Docker Optimization & Deployment
+
+The Docker image has been optimized for production environments, focusing on reducing the footprint for cloud hosting (e.g., Render, Hugging Face Spaces).
+
+### **Running with Docker**
 
 This project is fully containerized. Docker ensures the API runs in an environment with the exact versions of TensorFlow and Python required for the LSTM model.
 
-### 1. Build the Image
+#### 1. Build the Image
 From the project root, run:
 ```
 sudo docker build -t turbofan-rul-api:latest .
 ```
 
-### 2. Run the Container
+#### 2. Run the Container
 Start the API in detached mode, mapping port 8000:
 ```
 sudo docker run -d -p 8000:8000 --name turbofan-container turbofan-rul-api:latest
 ```
-### 3. Verify the Deployment
+#### 3. Verify the Deployment
 API Documentation: Visit http://localhost:8000/docs
 
 Check Logs: `sudo docker logs -f turbofan-container`
@@ -206,65 +269,12 @@ Min Latency: 83.86 ms
 Max Latency: 92.33 ms
 ```
 
-### 4. Stopping the Project
+#### 4. Stopping the Project
 To stop and remove the container:
 ```
 sudo docker stop turbofan-container
 sudo docker rm turbofan-container
 ```
-
----
-
-## Performance & Stress Testing
-
-To evaluate the operational limits of the API, stress tests were conducted comparing a **Local Environment** (Dedicated CPU) vs. **Hugging Face Spaces** (Shared Free-Tier CPU).
-
-### **Local Environment (Development)**
-* **Hardware:** Local Host
-* **Target:** `http://localhost:7860`
-
-| Concurrency (Users) | Success Rate | Avg Latency | P95 Latency |
-|:-------------------|:-------------|:------------|:------------|
-| 10                 | 100%         | 3.73s       | 6.10s       |
-| 20                 | 100%         | 2.36s       | 3.65s       |
-| 50                 | 100%         | 2.28s       | 3.43s       |
-| 80                 | 100%         | 2.50s       | 3.43s       |
-
-### **Live Production (Hugging Face)**
-* **Hardware:** 2 vCPU, 16GB RAM (Shared)
-* **Target:** `https://shuvro77-turbofan-predictive-maintenance.hf.space`
-
-| Concurrency (Users) | Success Rate | Avg Latency | P95 Latency |
-|:-------------------|:-------------|:------------|:------------|
-| 10                 | 100%         | 21.64s      | 40.70s      |
-| 20                 | 100%         | 19.26s      | 30.24s      |
-| 40                 | 98%          | 26.07s      | 41.81s      |
-| 80                 | 37%          | 20.07s      | 43.58s      |
-
-### **Key Observations**
-- **Infrastructure Limits:** The transition from local to shared cloud infrastructure resulted in a ~10x increase in latency, typical for computationally intensive LSTM models running on shared vCPUs.
-- **Stability Threshold:** The production API remains highly stable up to **20 concurrent users**. Beyond **40 concurrent users**, we observe request queuing and a drop in success rates due to CPU throttling.
-- **Reliability:** The 16GB RAM allocation on Hugging Face ensures the model remains loaded without Out-Of-Memory (OOM) errors even under heavy concurrent load.
-- **Key Finding:** The system is highly stable under load, maintaining a 100% success rate even at 80 concurrent connections. The latency remains consistent, demonstrating that the FastAPI + Uvicorn setup efficiently queues and processes LSTM inference tasks.
-
-### **How to Run Stress Tests**
-Ensure the Docker container is running, then use:
-```
-# Usage: stress_test.py [-h] [--env {local,live}] [--total TOTAL] [--concurrent CONCURRENT]
-
-Local:
-python3 scripts/stress_test.py --env local --total 100 --concurrent 20
-
-Live:
-python3 scripts/stress_test.py --env live --total 100 --concurrent 10
-```
-
----
-
-## Docker Optimization & Deployment
-
-The Docker image has been optimized for production environments, focusing on reducing the footprint for cloud hosting (e.g., Render, Hugging Face Spaces).
-
 ### **Optimization Techniques Applied:**
 1.  **Multi-Stage Builds:** Separated the build environment (compilers/pip cache) from the runtime environment.
 2.  **Library Selection:** Switched to `tensorflow-cpu` to remove ~1.5GB of unnecessary GPU/CUDA binaries.
