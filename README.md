@@ -7,33 +7,101 @@ sdk: docker
 app_port: 7860
 pinned: false
 ---
-### 🚀 Deployment Info
+###  Deployment Info
 - **Deployment Status:** ![Deployment Status](https://github.com/Shuvro77/Turbofan-Predictive-Maintenance/actions/workflows/deploy.yaml/badge.svg)
 - **Last Updated:** Refer to the [GitHub Actions History](https://github.com/Shuvro77/Turbofan-Predictive-Maintenance/actions) for the latest deployment timestamp.
 - **Live Demo:** [Hugging Face Space API](https://huggingface.co/spaces/Shuvro77/Turbofan-Predictive-Maintenance)
 
-> **⚠️ Automated Deployment Note:** This project is configured with **CI/CD**. Any changes committed and pushed to the `main` branch will automatically trigger a build and deploy the updated container to the Hugging Face Space.![Deployment Status](https://github.com/Shuvro77/Turbofan-Predictive-Maintenance/actions/workflows/deploy.yaml/badge.svg)
+> ** Automated Deployment Note:** This project is configured with **CI/CD**. Any changes committed and pushed to the `main` branch will automatically trigger a build and deploy the updated container to the Hugging Face Space.![Deployment Status](https://github.com/Shuvro77/Turbofan-Predictive-Maintenance/actions/workflows/deploy.yaml/badge.svg)
 
 # Turbofan Engine RUL Prediction (NASA CMAPSS)
 
 This project uses an **LSTM (Long Short-Term Memory)** network to predict the Remaining Useful Life (RUL) of aircraft engines using the FD001 dataset.
 
-## 🚀 Key Results
+## Key Results
 * **Final Test MAE:** 9.38
 * **Window Size:** 50 Cycles
 * **Clipping Value:** 125 (Piecewise RUL)
+---
+## Machine Learning Workflow
 
-## 🛠️ Project Structure
+This project follows a structured MLOps pipeline to predict the Remaining Useful Life (RUL) of aircraft engines using the NASA C-MAPSS dataset.
+
+### 1. Data Engineering & Preprocessing
+- **Dataset:** NASA CMAPSS (FD001), involving 21 sensors and 3 operational settings.
+- **Normalization:** Min-Max scaling was applied to sensor values to ensure they fall within the range [0, 1], preventing sensors with larger magnitudes from dominating the loss function.
+- **Labeling:** The target variable (RUL) was clipped at 125 cycles. This "Piecewise Linear RUL" strategy acknowledges that engines do not show signs of degradation until they reach a certain wear threshold.
+![RUL Distribution](reports/figures/rul_distribution.png)
+- **RemovingZeroVarianceFeatures:** The features with almost zero variance/dead features have been dropped. **['setting_3', 's_1', 's_5', 's_10', 's_16', 's_18', 's_19']**
+![RUL Distribution](reports/figures/columns_with_zero_variance.png)
+- **DroppingLowCorrelatedFeatures** Low correlated features (setting_1, setting_2) have been removed.  ![RUL Distribution](reports/figures/low_correlated_features.png)
+- **RemovedRedundantFeatures:** To remove multicolinear feature such as `s_14` was removed with (Correlation > 0.95).
+- **ValidfeatureSets:** 14 features used for training. ['s_11', 's_12', 's_13', 's_15', 's_17', 's_2', 's_20', 's_21', 's_3', 's_4', 's_6', 's_7', 's_8', 's_9'] 
+- **Sliding Window:** To capture temporal dependencies, data was reshaped into 3D sequences (Samples, Time Steps, Features) with a window size of **50 cycles**.
+
+### 2. Model Architecture (LSTM)
+The model uses a **Long Short-Term Memory (LSTM)** network, which is ideal for time-series forecasting due to its ability to remember long-term dependencies in sensor patterns.
+- **Input Layer:** Shape `(50, 25)` representing 50 time-steps and 25 features.
+- **LSTM Layers:** Two stacked LSTM layers (100 and 50 units) to extract hierarchical temporal features.
+- **Dropout:** 20% Dropout layers were added to prevent overfitting during training.
+- **Output Layer:** A Dense layer with a linear activation to predict the continuous RUL value.
+###  Model Summary
+The following table outlines the layer structure, output shapes, and parameter counts of the LSTM model used for RUL prediction:
+
+```
+Model: "sequential_2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ lstm_4 (LSTM)                   │ (None, 50, 64)         │        20,224 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ batch_normalization_4           │ (None, 50, 64)         │           256 │
+│ (BatchNormalization)            │                        │               │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ dropout_4 (Dropout)             │ (None, 50, 64)         │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ lstm_5 (LSTM)                   │ (None, 32)             │        12,416 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ batch_normalization_5           │ (None, 32)             │           128 │
+│ (BatchNormalization)            │                        │               │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ dropout_5 (Dropout)             │ (None, 32)             │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ dense_4 (Dense)                 │ (None, 16)             │           528 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ dense_5 (Dense)                 │ (None, 1)              │            17 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 33,569 (131.13 KB)
+ Trainable params: 33,377 (130.38 KB)
+ Non-trainable params: 192 (768.00 B)
+```
+### 3. Training & Evaluation
+- **Optimizer:** Adam optimizer with a Mean Squared Error (MSE) loss function.
+- **Early Stopping:** Implemented to monitor validation loss and halt training when performance plateaued, ensuring the model generalizes well to unseen engines.
+- **Metrics:** - **MAE (Mean Absolute Error):** Measures the average magnitude of error in cycles.
+  - **RMSE (Root Mean Square Error):** Penalizes larger errors, critical for safety-first maintenance. ![Training loss](reports/figures/training_loss.png)
+  
+
+### 4. Model Verification
+Before deployment, the model was verified using:
+- **Test Set Performance:** Evaluated against the ground truth RUL values provided in the CMAPSS dataset.
+- **Visual Analysis:** Comparison plots between Predicted RUL vs. Actual RUL for various engine IDs to verify the trend of degradation. ![Final evaluation](reports/figures/final_evaluation_actual_vs_predicted.png)
+- **Error Analysis:** The residual distribution is centered around zero, confirming that our model's errors are normally distributed and unbiased. ![Residual analysis](reports/figures/residual_distribution.png)
+- **Stress Testing:** Benchmarking the inference latency to ensure the model can handle real-time sensor streams within the FastAPI container.
+---
+##  Project Structure
 * `app/`: FastAPI implementation for real-time inference.
 * `artifacts/`: (Local only) Saved models and scalers.
 * `notebooks/`: Data exploration and model training.
+* `reports/figures`: Figures plotted during training and evaluation
+* `scripts`: Scripts needed for various helps
 
-## 🚦 How to run the API
+##  How to run the API
 1. Install requirements: `pip install -r requirements.txt`
 2. Run Uvicorn: `uvicorn app.main:app --reload`
 
 ---
-## 🧪 Testing the API
+## Testing the API
 
 The API is designed to handle time-series windows of varying lengths. While the LSTM model requires exactly 50 cycles, the system implements **Zero-Padding** to support engines with shorter histories.
 
@@ -60,7 +128,7 @@ curl -X 'POST' '[http://127.0.0.1:8000/predict](http://127.0.0.1:8000/predict)' 
 }
 ```
 ---
-## 🚀 Live API Access
+## Live API Access
 
 The model is professionally hosted on **Hugging Face Spaces** using a Dockerized FastAPI backend. You can interact with the API directly via the web interface or programmatically.
 
@@ -68,10 +136,10 @@ The model is professionally hosted on **Hugging Face Spaces** using a Dockerized
 
 ### **1. Interactive Documentation**
 Explore the endpoints and test the model in your browser via Swagger UI:
-👉 [View Interactive Docs](https://shuvro77-turbofan-predictive-maintenance.hf.space/docs)
+ [View Interactive Docs](https://shuvro77-turbofan-predictive-maintenance.hf.space/docs)
 
 ---
-## 📊 Performance Benchmarking
+## Performance Benchmarking
 
 To ensure the API is production-ready, we track latency metrics. Deep learning models often experience a "cold start" on the first request as the computation graph initializes.
 
@@ -98,7 +166,7 @@ Ensure the server is running, then execute:
 | Max Latency                 | 92.33 ms        | 2643.89 ms       | 
 ---
 
-## 🐳 Running with Docker
+## Running with Docker
 
 This project is fully containerized. Docker ensures the API runs in an environment with the exact versions of TensorFlow and Python required for the LSTM model.
 
@@ -147,7 +215,7 @@ sudo docker rm turbofan-container
 
 ---
 
-## 📈 Performance & Stress Testing
+## Performance & Stress Testing
 
 To evaluate the operational limits of the API, stress tests were conducted comparing a **Local Environment** (Dedicated CPU) vs. **Hugging Face Spaces** (Shared Free-Tier CPU).
 
@@ -193,7 +261,7 @@ python3 scripts/stress_test.py --env live --total 100 --concurrent 10
 
 ---
 
-## 🐳 Docker Optimization & Deployment
+## Docker Optimization & Deployment
 
 The Docker image has been optimized for production environments, focusing on reducing the footprint for cloud hosting (e.g., Render, Hugging Face Spaces).
 
